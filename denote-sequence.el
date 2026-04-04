@@ -642,7 +642,7 @@ With optional FILES, operate on them, else use the return value of
                        (components (denote-sequence-split sequence))
                        ((>= depth (length components))))
              file))
-       (or files (denote-sequence-get-all-files)))))
+         (or files (denote-sequence-get-all-files)))))
 
 (defun denote-sequence-get-all-sequences (&optional files)
   "Return all sequences in `denote-directory-files'.
@@ -1290,16 +1290,16 @@ Use optional PREFIX and DEPTH to format the string accordingly."
 (defun denote-sequence--get-interactive-for-prefix-and-depth ()
   "Return interactive list of arguments for `denote-sequence-dired' and related."
   (let ((arg (prefix-numeric-value current-prefix-arg)))
-     (cond
-      ((= arg 16)
-       (list
-        (denote-sequence-prompt "Limit to files that extend SEQUENCE (empty for all)")
-        (denote-sequence-depth-prompt)))
-      ((= arg 4)
-       (list
-        (denote-sequence-prompt "Limit to files that extend SEQUENCE (empty for all)")))
-      (t
-       nil))))
+    (cond
+     ((= arg 16)
+      (list
+       (denote-sequence-prompt "Limit to files that extend SEQUENCE (empty for all)")
+       (denote-sequence-depth-prompt)))
+     ((= arg 4)
+      (list
+       (denote-sequence-prompt "Limit to files that extend SEQUENCE (empty for all)")))
+     (t
+      nil))))
 
 ;;;###autoload
 (defun denote-sequence-dired (&optional prefix depth)
@@ -1641,6 +1641,7 @@ Then do what `denote-sequence-hierarchy-move-and-open' entails."
     (define-key map (kbd "b") #'denote-sequence-hierarchy-outline-backward-same-level)
     (define-key map (kbd "n") #'denote-sequence-hierarchy-outline-next-visible-heading)
     (define-key map (kbd "p") #'denote-sequence-hierarchy-outline-previous-visible-heading)
+    (define-key map (kbd "q") #'quit-window)
     map)
   "Key map for `denote-sequence-hierarchy-mode'.")
 
