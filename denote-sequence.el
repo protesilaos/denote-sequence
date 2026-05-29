@@ -876,50 +876,76 @@ return value of `denote-sequence-get-all-sequences'."
     ('sibling (denote-sequence--get-new-sibling sequence sequences))
     (_ (error "The type `%s' is not among `denote-sequence-types'" type))))
 
+(defun denote-sequence--filter-relative (comparison prefix depth &optional files)
+  "Filter files based on COMPARISON of their depth against DEPTH.
+Only consider files that match PREFIX.
+With optional FILES consider only those, otherwise operate on all files
+returned by `denote-sequence-get-all-files'."
+  (seq-filter
+   (lambda (file)
+     (funcall comparison (denote-sequence-depth (denote-retrieve-filename-signature file)) depth))
+   (if (and prefix (not (string-empty-p prefix)))
+       (denote-sequence-get-all-files-with-prefix prefix files)
+     (denote-sequence-get-all-files files))))
+
+(defun denote-sequence--get-all-parents (sequence &optional files)
+  "Get all parents of SEQUENCE among FILES."
+  (pcase-let* ((`(,sequence . ,scheme) (denote-sequence-and-scheme-p sequence))
+               (components (denote-sequence-split sequence))
+               (butlast (butlast components))
+               (found-files (denote-sequence-get-all-files files))
+               (likely-parents nil))
+    (while (>= (length butlast) 1)
+      (push (denote-sequence-join butlast scheme) likely-parents)
+      (setq butlast (butlast butlast)))
+    (seq-filter
+     (lambda (file)
+       (member (denote-retrieve-filename-signature file) likely-parents))
+     found-files)))
+
+(defun denote-sequence--get-parent (sequence &optional files)
+  "Get immediate parent of SEQUENCE among FILES."
+  (pcase-let* ((`(,sequence . ,scheme) (denote-sequence-and-scheme-p sequence))
+               (components (denote-sequence-split sequence))
+               (butlast (denote-sequence-join (butlast components) scheme)))
+    (seq-find
+     (lambda (file)
+       (string= (denote-retrieve-filename-signature file) butlast))
+     (denote-sequence-get-all-files files))))
+
+(defun denote-sequence--get-siblings (sequence &optional files)
+  "Get siblings of SEQUENCE among FILES."
+  (let* ((depth (denote-sequence-depth sequence))
+         (scheme (cdr (denote-sequence-and-scheme-p sequence)))
+         (components (denote-sequence-split sequence))
+         (prefix (denote-sequence-join (butlast components) scheme)))
+    (when-let* ((siblings (denote-sequence--filter-relative '= prefix depth files))
+                (current-path (denote-sequence-get-path sequence)))
+      (delete current-path siblings))))
+
+(defun denote-sequence--get-all-children (sequence &optional files)
+  "Get all children of SEQUENCE among FILES."
+  (denote-sequence--filter-relative '> sequence (denote-sequence-depth sequence) files))
+
+(defun denote-sequence--get-children (sequence &optional files)
+  "Get immediate children of SEQUENCE among FILES."
+  (let ((depth (denote-sequence-depth sequence)))
+    (seq-filter
+     (lambda (file)
+       (= (denote-sequence-depth (denote-sequence-file-p file)) (+ depth 1)))
+     (denote-sequence--get-all-children sequence files))))
+
 (defun denote-sequence-get-relative (sequence type &optional files)
   "Get files of TYPE given the SEQUENCE.
 With optional FILES consider only those, otherwise operate on all files
 returned by `denote-sequence-get-all-files'."
-  (let* ((depth (denote-sequence-depth sequence))
-         (scheme (cdr (denote-sequence-and-scheme-p sequence)))
-         (components (denote-sequence-split sequence))
-         (filter-common (lambda (comparison prefix)
-                          (seq-filter
-                           (lambda (file)
-                             (funcall comparison (denote-sequence-depth (denote-retrieve-filename-signature file)) depth))
-                           (if (and prefix (not (string-empty-p prefix)))
-                               (denote-sequence-get-all-files-with-prefix prefix files)
-                             (denote-sequence-get-all-files files))))))
-    (pcase type
-      ('all-parents
-       (let ((butlast (butlast components))
-             (found-files (denote-sequence-get-all-files files))
-             (likely-parents nil))
-         (while (>= (length butlast) 1)
-           (push (denote-sequence-join butlast scheme) likely-parents)
-           (setq butlast (butlast butlast)))
-         (seq-filter
-          (lambda (file)
-            (member (denote-retrieve-filename-signature file) likely-parents))
-          found-files)))
-      ('parent
-       (let ((butlast (denote-sequence-join (butlast components) scheme)))
-         (seq-find
-          (lambda (file)
-            (string= (denote-retrieve-filename-signature file) butlast))
-          (denote-sequence-get-all-files files))))
-      ('siblings
-       (when-let* ((siblings (funcall filter-common '= (denote-sequence-join (butlast components) scheme)))
-                   (current-path (denote-sequence-get-path sequence)))
-         (delete current-path siblings)))
-      ('all-children
-       (funcall filter-common '> sequence))
-      ('children
-       (seq-filter
-        (lambda (file)
-          (= (denote-sequence-depth (denote-sequence-file-p file)) (+ depth 1)))
-        (funcall filter-common '> sequence)))
-      (_ (error "The type `%s' is not among the allowed types" type)))))
+  (pcase type
+    ('all-parents (denote-sequence--get-all-parents sequence files))
+    ('parent (denote-sequence--get-parent sequence files))
+    ('siblings (denote-sequence--get-siblings sequence files))
+    ('all-children (denote-sequence--get-all-children sequence files))
+    ('children (denote-sequence--get-children sequence files))
+    (_ (error "The type `%s' is not among the allowed types" type))))
 
 (defvar denote-sequence-type-history nil
   "Minibuffer history of `denote-sequence-type-prompt'.")
@@ -1221,6 +1247,50 @@ for a file among the matching files."
                        (denote-sequence-file-prompt "Select a relative" relatives)))
         (user-error "The sequence `%s' has no relatives of type `%s'" sequence type))
     (user-error "The current file has no sequence")))
+
+;;;###autoload
+(defun denote-sequence-find-parent (sequence)
+  "Find the parent of SEQUENCE."
+  (interactive (list (denote-sequence--get-current-sequence-or-prompt "Find parent of SEQUENCE")))
+  (if-let* ((parent (denote-sequence-get-relative sequence 'parent)))
+      (find-file parent)
+    (user-error "The sequence `%s' has no parent" sequence)))
+
+;;;###autoload
+(defun denote-sequence-find-child (sequence)
+  "Find a child of SEQUENCE using completion."
+  (interactive (list (denote-sequence--get-current-sequence-or-prompt "Find child of SEQUENCE")))
+  (if-let* ((children (denote-sequence-get-relative sequence 'children)))
+      (when-let* ((child (denote-sequence-file-prompt (format "Select child of %s" sequence) children)))
+        (find-file child))
+    (user-error "The sequence `%s' has no children" sequence)))
+
+;;;###autoload
+(defun denote-sequence-find-sibling (sequence)
+  "Find a sibling of SEQUENCE using completion."
+  (interactive (list (denote-sequence--get-current-sequence-or-prompt "Find sibling of SEQUENCE")))
+  (if-let* ((siblings (denote-sequence-get-relative sequence 'siblings)))
+      (when-let* ((sibling (denote-sequence-file-prompt (format "Select sibling of %s" sequence) siblings)))
+        (find-file sibling))
+    (user-error "The sequence `%s' has no siblings" sequence)))
+
+;;;###autoload
+(defun denote-sequence-find-ancestor (sequence)
+  "Find an ancestor of SEQUENCE using completion."
+  (interactive (list (denote-sequence--get-current-sequence-or-prompt "Find ancestor of SEQUENCE")))
+  (if-let* ((ancestors (denote-sequence-get-relative sequence 'all-parents)))
+      (when-let* ((ancestor (denote-sequence-file-prompt (format "Select ancestor of %s" sequence) ancestors)))
+        (find-file ancestor))
+    (user-error "The sequence `%s' has no ancestors" sequence)))
+
+;;;###autoload
+(defun denote-sequence-find-descendant (sequence)
+  "Find a descendant of SEQUENCE using completion."
+  (interactive (list (denote-sequence--get-current-sequence-or-prompt "Find descendant of SEQUENCE")))
+  (if-let* ((descendants (denote-sequence-get-relative sequence 'all-children)))
+      (when-let* ((descendant (denote-sequence-file-prompt (format "Select descendant of %s" sequence) descendants)))
+        (find-file descendant))
+    (user-error "The sequence `%s' has no descendants" sequence)))
 
 ;;;###autoload
 (defun denote-sequence-link (file &optional id-only)
