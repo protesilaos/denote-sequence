@@ -386,8 +386,10 @@ Everything is in place to set up the package.
     ("C-c n s c" . denote-sequence-convert))
   :config
   ;; The default sequence scheme is `numeric'.
-  (setq denote-sequence-scheme 'alphanumeric))
-  
+  (setq denote-sequence-scheme 'alphanumeric)
+  ;; If you primarily use `denote-sequence', you might prefer to sort
+  ;; your notes by signature.
+  (setq denote-sort-dired-default-sort-component 'signature))
 #+end_src
 
 * Acknowledgements
