@@ -1623,6 +1623,7 @@ set the `revert-buffer-function'."
 (declare-function outline-backward-same-level "outline" (arg))
 (declare-function outline-next-visible-heading "outline" (arg))
 (declare-function outline-previous-visible-heading "outline" (arg))
+(declare-function outline-up-heading "outline" (arg &optional invisible-ok))
 
 (defmacro denote-sequence-define-hierarchy-motion-command (outline-motion)
   "Define a command that performs OUTLINE-MOTION.
@@ -1642,6 +1643,7 @@ Then do what `denote-sequence-hierarchy-move-and-open' entails."
 (denote-sequence-define-hierarchy-motion-command outline-backward-same-level)
 (denote-sequence-define-hierarchy-motion-command outline-next-visible-heading)
 (denote-sequence-define-hierarchy-motion-command outline-previous-visible-heading)
+(denote-sequence-define-hierarchy-motion-command outline-up-heading)
 
 ;; TODO 2025-11-19: Review which keybindings we need to cover the
 ;; basic use-case.  I do not want to have a million options here.
@@ -1656,6 +1658,7 @@ Then do what `denote-sequence-hierarchy-move-and-open' entails."
     (define-key map (kbd "b") #'denote-sequence-hierarchy-outline-backward-same-level)
     (define-key map (kbd "n") #'denote-sequence-hierarchy-outline-next-visible-heading)
     (define-key map (kbd "p") #'denote-sequence-hierarchy-outline-previous-visible-heading)
+    (define-key map (kbd "u") #'denote-sequence-hierarchy-outline-up-heading)
     (define-key map (kbd "q") #'quit-window)
     map)
   "Keymap for `denote-sequence-hierarchy-mode'.")
