@@ -1549,7 +1549,8 @@ The commands affected by this user option are the following:
 - `denote-sequence-hierarchy-outline-forward-same-level'
 - `denote-sequence-hierarchy-outline-backward-same-level'
 - `denote-sequence-hierarchy-outline-next-visible-heading'
-- `denote-sequence-hierarchy-outline-previous-visible-heading'"
+- `denote-sequence-hierarchy-outline-previous-visible-heading'
+- `denote-sequence-hierarchy-outline-up-heading'"
   :type 'boolean
   :package-version '(denote . "0.3.0")
   :group 'denote-sequence-hierarchy)
