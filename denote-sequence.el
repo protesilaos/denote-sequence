@@ -559,7 +559,13 @@ sibling in the sequence."
          (all-files (append buffer-files files)))
     (seq-uniq all-files)))
 
-(defun denote-sequence-get-all-files (&optional files as-sequence-path-pairs)
+(defun denote-sequence--get-all-files-data (file)
+  "Return FILE as a cons cell of the form (SEQUENCE . FILE).
+If FILE does not conform with `denote-sequence-file-p' then return nil."
+  (when (denote-sequence-file-p file)
+    (cons (denote-retrieve-filename-signature file) file)))
+
+(defun denote-sequence--get-all-files-default (&optional files as-sequence-path-pairs)
   "Return all files in variable `denote-directory' with a sequence.
 A sequence is a Denote signature that conforms with `denote-sequence-p'.
 
@@ -570,15 +576,9 @@ With optional AS-SEQUENCE-PATH-PAIRS return all files as a list of pairs
 each in the form of (SEQUENCE . PATH).  Otherwise, return a list of
 strings each representing a file system path."
   (when-let* ((files (denote-sequence--get-files (or files (denote-directory-files)))))
-    (if as-sequence-path-pairs
-        (delq nil
-              (mapcar
-               (lambda (file)
-                 (when (denote-sequence-file-p file)
-                   (cons
-                    (denote-retrieve-filename-signature file)
-                    file)))
-               files))
+    (if-let* ((_ as-sequence-path-pairs)
+              (results (mapcar #'denote-sequence--get-all-files-data files)))
+        (delq nil results)
       (seq-filter #'denote-sequence-file-p files))))
 
 (defun denote-sequence-get-path (sequence &optional files)
