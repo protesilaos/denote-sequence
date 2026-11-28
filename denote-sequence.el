@@ -555,7 +555,9 @@ sibling in the sequence."
 
 (defun denote-sequence--get-files (files)
   "Return list of FILES plus any buffers in the variable `denote-directory'."
-  (delete-dups (append (denote--buffer-file-names) files)))
+  (let* ((buffer-files (denote-get-buffer-file-names))
+         (all-files (append buffer-files files)))
+    (seq-uniq all-files)))
 
 (defun denote-sequence-get-all-files (&optional files as-sequence-path-pairs)
   "Return all files in variable `denote-directory' with a sequence.
