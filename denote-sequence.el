@@ -581,7 +581,29 @@ strings each representing a file system path."
         (delq nil results)
       (seq-filter #'denote-sequence-file-p files))))
 
-(defun denote-sequence-get-path (sequence &optional files)
+(defvar denote-sequence-get-all-files-function #'denote-sequence--get-all-files-default
+  "Function to return all files with a sequence.
+The function is called with the same arguments as
+`denote-sequence-get-all-files' and should return the same result.
+
+Package developers can set this variable to a function that does what
+they need, such as to read from a cache or database.")
+
+(defun denote-sequence-get-all-files (&optional files as-sequence-path-pairs)
+  "Return all files in variable `denote-directory' with a sequence.
+A sequence is a Denote signature that conforms with `denote-sequence-p'.
+
+With optional FILES consider only those, otherwise use the return value
+of `denote-directory-files'.
+
+With optional AS-SEQUENCE-PATH-PAIRS return all files as a list of pairs
+each in the form of (SEQUENCE . PATH).  Otherwise, return a list of
+strings each representing a file system path.
+
+Call `denote-sequence-get-all-files-function' to do the work."
+  (funcall denote-sequence-get-all-files-function files as-sequence-path-pairs))
+
+(defun denote-sequence--get-path-default (sequence &optional files)
   "Return absolute path of file with SEQUENCE.
 Search in the return value of `denote-sequence-get-all-files' or in FILES."
   (let ((files
@@ -600,6 +622,21 @@ Search in the return value of `denote-sequence-get-all-files' or in FILES."
                     (string= ".org" file-extension)
                     (member file-extension (denote-file-type-extensions))))))
        files))))
+
+(defvar denote-sequence-get-path-function #'denote-sequence--get-path-default
+  "Function to return the absolute path of the file with a given sequence.
+The function is called with the same arguments as
+`denote-sequence-get-path' and should return the same result.
+
+Package developers can set this variable to a function that does what
+they need, such as to read from a cache or database.")
+
+(defun denote-sequence-get-path (sequence &optional files)
+  "Return absolute path of file with SEQUENCE.
+Search in the return value of `denote-sequence-get-all-files' or in FILES.
+
+Call `denote-sequence-get-path-function' to do the work."
+  (funcall denote-sequence-get-path-function sequence files))
 
 (defun denote-sequence--sequence-prefix-p (prefix sequence)
   "Return non-nil if SEQUENCE has prefix sequence PREFIX.
@@ -878,7 +915,7 @@ return value of `denote-sequence-get-all-sequences'."
     ('sibling (denote-sequence--get-new-sibling sequence sequences))
     (_ (error "The type `%s' is not among `denote-sequence-types'" type))))
 
-(defun denote-sequence-get-relative (sequence type &optional files)
+(defun denote-sequence--get-relative-default (sequence type &optional files)
   "Get files of TYPE given the SEQUENCE.
 With optional FILES consider only those, otherwise operate on all files
 returned by `denote-sequence-get-all-files'."
@@ -922,6 +959,22 @@ returned by `denote-sequence-get-all-files'."
           (= (denote-sequence-depth (denote-sequence-file-p file)) (+ depth 1)))
         (funcall filter-common '> sequence)))
       (_ (error "The type `%s' is not among the allowed types" type)))))
+
+(defvar denote-sequence-get-relative-function #'denote-sequence--get-relative-default
+  "Function to return the relatives of a given sequence.
+The function is called with the same arguments as
+`denote-sequence-get-relative' and should return the same result.
+
+Package developers can set this variable to a function that does what
+they need, such as to read from a cache or database.")
+
+(defun denote-sequence-get-relative (sequence type &optional files)
+  "Get files of TYPE given the SEQUENCE.
+With optional FILES consider only those, otherwise operate on all files
+returned by `denote-sequence-get-all-files'.
+
+Call `denote-sequence-get-relative-function' to do the work."
+  (funcall denote-sequence-get-relative-function sequence type files))
 
 (defvar denote-sequence-type-history nil
   "Minibuffer history of `denote-sequence-type-prompt'.")
@@ -1574,10 +1627,20 @@ The commands affected by this user option are the following:
     (funcall append-fn keywords "_" 'denote-sequence-hierarchy-keywords-text)
     entry))
 
+(defvar denote-sequence-hierarchy-get-title-function #'denote-retrieve-title-or-filename
+  "Function to return the title of a file in `denote-sequence-view-hierarchy'.
+The function is called with the same arguments as
+`denote-retrieve-title-or-filename', namely the FILE and its TYPE as
+returned by `denote-filetype-heuristics', and should return the title as
+a string or nil.
+
+Package developers can set this variable to a function that does what
+they need, such as to read from a cache or database.")
+
 (defun denote-sequence--hierarchy-insert (file)
   "Insert FILE in the hierarchy with indentation matching the sequence depth."
   (condition-case data
-      (let* ((title (denote-retrieve-title-or-filename file (denote-filetype-heuristics file)))
+      (let* ((title (funcall denote-sequence-hierarchy-get-title-function file (denote-filetype-heuristics file)))
              (keywords (denote-retrieve-filename-keywords file))
              (sequence (denote-retrieve-filename-signature file))
              (depth (denote-sequence-depth sequence))
